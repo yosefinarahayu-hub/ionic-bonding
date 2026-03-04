@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ionic Bonding — Dot & Cross Diagrams</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Source+Code+Pro:wght@400;600&display=swap');
+
+:root {
+  --bg: #fdfaf4;
+  --paper: #ffffff;
+  --ink: #1a1a2e;
+  --faint: #e8e0d0;
+  --rule: #c8bfaa;
+  --metal-fill: #fff8e7;
+  --metal-stroke: #c07000;
+  --nonmetal-fill: #eef6ff;
+  --nonmetal-stroke: #1a5fa0;
+  --dot-color: #c07000;
+  --cross-color: #1a5fa0;
+  --ion-cat-fill: #fff0eb;
+  --ion-cat-stroke: #c03010;
+  --ion-an-fill: #e8f8ff;
+  --ion-an-stroke: #006090;
+  --arrow-color: #444;
+  --accent: #2d6a4f;
+  --highlight: #ffe066;
+  --label-metal: #8B4500;
+  --label-non: #003d7a;
+  --shadow: rgba(0,0,0,0.10);
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  font-family: 'Nunito', sans-serif;
+  color: var(--ink);
+  min-height: 100vh;
+}
+
+/* Subtle grid background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--faint) 1px, transparent 1px),
+    linear-gradient(90deg, var(--faint) 1px, transparent 1px);
+  background-size: 28px 28px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.page { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 20px 16px 40px; }
+
+/* Header */
+.header {
+  text-align: center;
+  padding: 24px 0 18px;
+  border-bottom: 2.5px solid var(--rule);
+  margin-bottom: 20px;
+}
+.header h1 {
+  font-size: clamp(1.5rem, 4vw, 2.2rem);
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+}
+.header h1 span { color: var(--accent); }
+.header p { color: #555; font-size: 0.9rem; margin-top: 5px; }
+
+/* Legend */
+.legend {
+  display: flex;
+  justify-content: center;
+  gap: 30px;
+  padding: 10px 0 18px;
+  flex-wrap: wrap;
+}
+.leg-item { display: flex; align-items: center; gap: 7px; font-size: 0.85rem; font-weight: 700; }
+.leg-dot { width: 14px; height: 14px; border-radius: 50%; background: var(--dot-color); display: inline-block; }
+.leg-cross {
+  width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center;
+  color: var(--cross-color); font-size: 15px; font-weight: 900; line-height: 1;
+}
+.leg-dot-label { color: var(--label-metal); }
+.leg-cross-label { color: var(--label-non); }
+
+/* Compound Tabs */
+.tabs {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+.tab {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 8px 22px;
+  border: 2px solid var(--rule);
+  background: var(--paper);
+  color: #666;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.tab:hover { border-color: var(--accent); color: var(--accent); }
+.tab.active {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: #fff;
+  box-shadow: 3px 3px 0 var(--accent);
+}
+
+/* Step indicator */
+.step-bar {
+  display: flex;
+  justify-content: center;
+  gap: 0;
+  margin-bottom: 18px;
+  border: 1.5px solid var(--rule);
+  border-radius: 6px;
+  overflow: hidden;
+  max-width: 700px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.step-tab {
+  flex: 1;
+  text-align: center;
+  padding: 8px 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #999;
+  border-right: 1.5px solid var(--rule);
+  background: var(--paper);
+  transition: all 0.25s;
+  cursor: default;
+}
+.step-tab:last-child { border-right: none; }
+.step-tab.active { background: var(--ink); color: #fff; }
+.step-tab.done { background: #e8f4ee; color: var(--accent); }
+
+/* Main diagram card */
+.diagram-card {
+  background: var(--paper);
+  border: 2px solid var(--rule);
+  border-radius: 8px;
+  padding: 24px 16px 20px;
+  box-shadow: 4px 4px 0 var(--faint);
+  min-height: 280px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.stage-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #aaa;
+  position: absolute;
+  top: 10px; left: 16px;
+}
+
+/* SVG canvas */
+.diagram-svg {
+  display: block;
+  max-width: 100%;
+}
+
+/* Narrative */
+.narr-card {
+  background: #f6f2e8;
+  border: 1.5px solid var(--rule);
+  border-left: 4px solid var(--accent);
+  border-radius: 5px;
+  padding: 12px 16px;
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: #333;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+}
+.narr-card strong { color: var(--ink); }
+.narr-card em { color: var(--accent); font-style: normal; font-weight: 700; }
+.narr-card code { font-family: 'Source Code Pro', monospace; background: #e8e0d0; padding: 1px 5px; border-radius: 3px; font-size: 0.85rem; }
+
+/* Buttons */
+.btn-row { display: flex; gap: 12px; justify-content: center; padding: 14px 0 4px; flex-wrap: wrap; }
+.btn {
+  font-family: 'Nunito', sans-serif;
+  font-size: 0.88rem;
+  font-weight: 800;
+  padding: 10px 28px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.15s;
+  letter-spacing: 0.5px;
+}
+.btn-primary {
+  background: var(--ink);
+  color: #fff;
+  border: 2px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--accent);
+}
+.btn-primary:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 var(--accent); }
+.btn-primary:active { transform: translate(2px,2px); box-shadow: 1px 1px 0 var(--accent); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; box-shadow: 3px 3px 0 var(--accent); }
+.btn-secondary {
+  background: transparent;
+  color: #666;
+  border: 2px solid var(--rule);
+}
+.btn-secondary:hover { border-color: #999; color: var(--ink); }
+
+/* Key facts strip */
+.facts-strip {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  padding: 4px 0 8px;
+}
+.fact-chip {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--rule);
+  background: var(--paper);
+  color: #555;
+}
+.fact-chip.cat { border-color: var(--ion-cat-stroke); color: var(--ion-cat-stroke); background: var(--ion-cat-fill); }
+.fact-chip.an { border-color: var(--ion-an-stroke); color: var(--ion-an-stroke); background: var(--ion-an-fill); }
+
+/* Animation classes */
+@keyframes fadeIn { from { opacity:0; transform:scale(0.94); } to { opacity:1; transform:scale(1); } }
+@keyframes slideIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+@keyframes eTransfer {
+  0%   { opacity:1; r:5; }
+  40%  { opacity:1; r:6; }
+  100% { opacity:0; r:3; }
+}
+@keyframes glow { 0%,100%{opacity:0.5} 50%{opacity:1} }
+
+.anim-fadein { animation: fadeIn 0.5s ease forwards; }
+.anim-slide  { animation: slideIn 0.4s ease forwards; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <h1>Ionic Bonding — <span>Dot & Cross Diagrams</span></h1>
+    <p>Visualise electron transfer using the standard dot-and-cross method</p>
+  </div>
+
+  <div class="legend">
+    <div class="leg-item"><span class="leg-dot"></span><span class="leg-dot-label">● Electrons from metal atom</span></div>
+    <div class="leg-item"><span class="leg-cross">✕</span><span class="leg-cross-label">✕ Electrons from non-metal atom</span></div>
+  </div>
+
+  <div class="tabs" id="tabRow">
+    <button class="tab active" onclick="selectCompound('NaCl')">NaCl</button>
+    <button class="tab" onclick="selectCompound('MgO')">MgO</button>
+    <button class="tab" onclick="selectCompound('K2O')">K₂O</button>
+    <button class="tab" onclick="selectCompound('Al2O3')">Al₂O₃</button>
+  </div>
+
+  <div class="step-bar" id="stepBar"></div>
+
+  <div class="diagram-card" id="diagramCard">
+    <div class="stage-title" id="stageTitle">Loading…</div>
+    <svg class="diagram-svg" id="mainSvg" viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+
+  <div class="facts-strip" id="factsStrip"></div>
+
+  <div class="narr-card" id="narrative">Select a compound and press <strong>Next Step</strong> to begin.</div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" id="nextBtn" onclick="nextStep()">▶ Next Step</button>
+    <button class="btn btn-secondary" onclick="resetAll()">↺ Reset</button>
+  </div>
+
+</div>
+
+<script>
+// ─── Compound Data ──────────────────────────────────────────────────────────
+// Each atom defined with outerShell electron count and shell arrangement
+const C = {
+  NaCl: {
+    label:'NaCl', full:'Sodium Chloride',
+    metal:{ sym:'Na', name:'Sodium', outerE:1, shells:[2,8,1],
+            fill:'#fff8e7', stroke:'#c07000', ionFill:'#fff0eb', ionStroke:'#c03010',
+            charge:1, ionSym:'Na⁺' },
+    non:{   sym:'Cl', name:'Chlorine', outerE:7, shells:[2,8,7],
+            fill:'#eef6ff', stroke:'#1a5fa0', ionFill:'#e8f8ff', ionStroke:'#006090',
+            charge:1, ionSym:'Cl⁻' },
+    ratio:[1,1], eTrans:1,
+    steps:['Metal atom','Non-metal atom','Electron transfer','Ions formed'],
+    narr:[
+      `<strong>Sodium (Na)</strong> atom: electronic configuration <code>[2,8,1]</code>. It has <em>1 outer-shell electron</em> (shown as a <strong style="color:#c07000">●</strong> dot). Na is in Group 1 — it readily loses this electron to achieve a full outer shell.`,
+      `<strong>Chlorine (Cl)</strong> atom: electronic configuration <code>[2,8,7]</code>. It has <em>7 outer-shell electrons</em> (shown as <strong style="color:#1a5fa0">✕</strong> crosses). Cl is in Group 17 — it needs just one more electron to complete its octet.`,
+      `The <strong>1 dot electron</strong> from Na transfers across to Cl's outer shell. Watch the dot move from Na to the Cl shell. This is driven by the high electronegativity of Cl. The outer shells now contain <em>8 electrons each</em> (full octets).`,
+      `<strong>Na⁺</strong> has lost its outer shell entirely — its new outer shell is the full second shell <code>[2,8]</code>, making it <em>smaller</em> than the Na atom. <strong>Cl⁻</strong> now has <code>[2,8,8]</code> — <em>larger</em> than Cl atom due to electron–electron repulsion. The opposite charges attract, forming the ionic bond.`
+    ]
+  },
+  MgO: {
+    label:'MgO', full:'Magnesium Oxide',
+    metal:{ sym:'Mg', name:'Magnesium', outerE:2, shells:[2,8,2],
+            fill:'#fff8e7', stroke:'#c07000', ionFill:'#fff0eb', ionStroke:'#c03010',
+            charge:2, ionSym:'Mg²⁺' },
+    non:{   sym:'O', name:'Oxygen', outerE:6, shells:[2,6],
+            fill:'#eef6ff', stroke:'#1a5fa0', ionFill:'#e8f8ff', ionStroke:'#006090',
+            charge:2, ionSym:'O²⁻' },
+    ratio:[1,1], eTrans:2,
+    steps:['Metal atom','Non-metal atom','Electron transfer','Ions formed'],
+    narr:[
+      `<strong>Magnesium (Mg)</strong> atom: configuration <code>[2,8,2]</code>. It has <em>2 outer-shell electrons</em> (shown as <strong style="color:#c07000">●●</strong> dots). Mg is in Group 2 — it loses both outer electrons to reach the stable Ne configuration.`,
+      `<strong>Oxygen (O)</strong> atom: configuration <code>[2,6]</code>. It has <em>6 outer-shell electrons</em> (shown as <strong style="color:#1a5fa0">✕✕✕✕✕✕</strong>). O is in Group 16 — it needs 2 more electrons to complete its octet.`,
+      `Both <strong>dot electrons</strong> from Mg transfer to O's outer shell. This 2-electron transfer gives O a full octet, and Mg loses its entire outer shell. The result is a doubly-charged system — <em>much stronger attraction</em> than NaCl.`,
+      `<strong>Mg²⁺</strong> loses its entire third shell → configuration <code>[2,8]</code>, <em>much smaller</em>. <strong>O²⁻</strong> gains 2 electrons → configuration <code>[2,8]</code>, <em>larger</em>. The +2/−2 charge gives MgO one of the highest lattice energies of any simple ionic compound.`
+    ]
+  },
+  K2O: {
+    label:'K₂O', full:'Potassium Oxide',
+    metal:{ sym:'K', name:'Potassium', outerE:1, shells:[2,8,8,1],
+            fill:'#fff8e7', stroke:'#c07000', ionFill:'#fff0eb', ionStroke:'#c03010',
+            charge:1, ionSym:'K⁺' },
+    non:{   sym:'O', name:'Oxygen', outerE:6, shells:[2,6],
+            fill:'#eef6ff', stroke:'#1a5fa0', ionFill:'#e8f8ff', ionStroke:'#006090',
+            charge:2, ionSym:'O²⁻' },
+    ratio:[2,1], eTrans:1,
+    steps:['Metal atoms (×2)','Non-metal atom','Electron transfer','Ions formed'],
+    narr:[
+      `<strong>Potassium (K)</strong> atoms: configuration <code>[2,8,8,1]</code>. Each has <em>1 outer electron</em> (dot). Since O needs 2 electrons and K provides only 1, <em>two K atoms</em> are needed. Both are drawn side by side.`,
+      `<strong>Oxygen (O)</strong> atom: configuration <code>[2,6]</code> with <em>6 outer electrons</em> (crosses). It requires 2 more electrons — one from each K atom — to achieve a full octet.`,
+      `One dot electron transfers from <strong>K₁</strong> and one from <strong>K₂</strong> to O's outer shell. Both K atoms simultaneously lose their single outer electron. O gains 2 electrons and achieves <code>[2,8]</code>.`,
+      `Two <strong>K⁺</strong> ions (each smaller, config <code>[2,8,8]</code>) surround one <strong>O²⁻</strong> ion (larger, config <code>[2,8]</code>). Charge balance: <em>2×(+1) + 1×(−2) = 0</em> ✓. Formula K₂O.`
+    ]
+  },
+  Al2O3: {
+    label:'Al₂O₃', full:'Aluminium Oxide',
+    metal:{ sym:'Al', name:'Aluminium', outerE:3, shells:[2,8,3],
+            fill:'#fff8e7', stroke:'#c07000', ionFill:'#fff0eb', ionStroke:'#c03010',
+            charge:3, ionSym:'Al³⁺' },
+    non:{   sym:'O', name:'Oxygen', outerE:6, shells:[2,6],
+            fill:'#eef6ff', stroke:'#1a5fa0', ionFill:'#e8f8ff', ionStroke:'#006090',
+            charge:2, ionSym:'O²⁻' },
+    ratio:[2,3], eTrans:3,
+    steps:['Metal atoms (×2)','Non-metal atoms (×3)','Electron transfer','Ions formed'],
+    narr:[
+      `<strong>Aluminium (Al)</strong> atoms: configuration <code>[2,8,3]</code>. Each has <em>3 outer electrons</em> (dots). Two Al atoms are needed, giving <em>6 electrons total</em> to distribute across 3 oxygen atoms (2 each). Both Al atoms drawn with their dot electrons.`,
+      `<strong>Oxygen (O)</strong> atoms: three O atoms, each with configuration <code>[2,6]</code> and <em>6 outer electrons</em> (crosses). Each needs 2 more electrons. Total needed: 3×2 = 6 electrons — exactly what 2 Al atoms provide.`,
+      `<strong>3 dots from Al₁</strong> and <strong>3 dots from Al₂</strong> transfer: each O atom receives 2 dot electrons. This is a 6-electron transfer in total. Al atoms lose all three outer electrons; each O gains 2.`,
+      `Two <strong>Al³⁺</strong> ions (very small — loses entire 3rd shell, config <code>[2,8]</code>) and three <strong>O²⁻</strong> ions (larger, config <code>[2,8]</code>). Charge: <em>2×(+3) + 3×(−2) = 0</em> ✓. Al₂O₃ is extremely hard (corundum, ruby, sapphire!).`
+    ]
+  }
+};
+
+// ─── State ──────────────────────────────────────────────────────────────────
+let current = 'NaCl';
+let step = -1;
+
+// ─── Helpers ────────────────────────────────────────────────────────────────
+function svgEl(tag, attrs, txt) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const el = document.createElementNS(ns, tag);
+  for (const [k,v] of Object.entries(attrs)) el.setAttribute(k, v);
+  if (txt !== undefined) el.textContent = txt;
+  return el;
+}
+
+function clearSvg() {
+  const svg = document.getElementById('mainSvg');
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+  return svg;
+}
+
+// ─── Draw a single outer shell with electrons (dots or crosses) ─────────────
+// cx,cy = centre, r = shell radius, count = electrons, type = 'dot'|'cross'|'dotcross'
+// dotCount = how many are dots (rest are crosses)
+function drawOuterShell(svg, cx, cy, r, totalE, dotCount, fill, stroke, sym, charge, showChargeBracket) {
+  // Shell circle
+  const shell = svgEl('circle', { cx, cy, r,
+    fill, stroke, 'stroke-width':'2',
+    opacity:'0.92'
+  });
+  svg.appendChild(shell);
+
+  // Symbol in centre
+  const label = svgEl('text', {
+    x: cx, y: cy + 5,
+    'text-anchor':'middle',
+    'font-size':'17',
+    'font-weight':'800',
+    'font-family':'Nunito, sans-serif',
+    fill: stroke
+  }, sym);
+  svg.appendChild(label);
+
+  // If charge, show superscript
+  if (charge) {
+    const cl = svgEl('text', {
+      x: cx + 14, y: cy - 11,
+      'font-size':'11',
+      'font-weight':'900',
+      'font-family':'Nunito, sans-serif',
+      fill: stroke
+    }, charge);
+    svg.appendChild(cl);
+  }
+
+  // Draw electrons around the shell
+  // Standard dot-cross placement: 8 positions (top, top-right, right, bottom-right, bottom, bottom-left, left, top-left)
+  // For shells with < 8 electrons, fill from top, going clockwise, pairing at 8 positions
+  const positions8 = [
+    [0, -1], [0.707, -0.707], [1, 0], [0.707, 0.707],
+    [0, 1], [-0.707, 0.707], [-1, 0], [-0.707, -0.707]
+  ];
+
+  // Place electrons: up to 2 per position (paired), outer shell standard
+  // Use pairs: positions 0–3 get first electron, then 0–3 get second, etc.
+  const ePositions = [];
+  // First pass: 1 electron at each position
+  for (let i = 0; i < Math.min(totalE, 8); i++) {
+    const [dx, dy] = positions8[i];
+    ePositions.push({ dx, dy, paired: false });
+  }
+  // Second pass: pair up if > 8 electrons (shouldn't happen for outer shell here)
+  // For octet (8), all positions have 1
+  // For 8+ with pairs — just show 2 per position
+  if (totalE > 8) {
+    for (let i = 0; i < totalE - 8; i++) {
+      ePositions[i].paired = true;
+    }
+  }
+
+  const eR = r + 12; // distance from centre to electron
+  ePositions.forEach(({ dx, dy, paired }, idx) => {
+    const ex = cx + dx * eR;
+    const ey = cy + dy * eR;
+    const isDot = idx < dotCount;
+    drawElectron(svg, ex, ey, isDot, paired);
+  });
+
+  // Charge bracket (for ions)
+  if (showChargeBracket) {
+    const br = r + 24;
+    const bracketG = svgEl('g', {});
+    // left bracket
+    const lbTop = svgEl('line', { x1: cx - br + 4, y1: cy - br + 4, x2: cx - br, y2: cy - br + 4, stroke:'#333', 'stroke-width':'2' });
+    const lbLeft = svgEl('line', { x1: cx - br, y1: cy - br + 4, x2: cx - br, y2: cy + br - 4, stroke:'#333', 'stroke-width':'2' });
+    const lbBot = svgEl('line', { x1: cx - br, y1: cy + br - 4, x2: cx - br + 4, y2: cy + br - 4, stroke:'#333', 'stroke-width':'2' });
+    // right bracket
+    const rbTop = svgEl('line', { x1: cx + br - 4, y1: cy - br + 4, x2: cx + br, y2: cy - br + 4, stroke:'#333', 'stroke-width':'2' });
+    const rbRight = svgEl('line', { x1: cx + br, y1: cy - br + 4, x2: cx + br, y2: cy + br - 4, stroke:'#333', 'stroke-width':'2' });
+    const rbBot = svgEl('line', { x1: cx + br, y1: cy + br - 4, x2: cx + br - 4, y2: cy + br - 4, stroke:'#333', 'stroke-width':'2' });
+    [lbTop, lbLeft, lbBot, rbTop, rbRight, rbBot].forEach(l => bracketG.appendChild(l));
+    svg.appendChild(bracketG);
+    // charge label outside bracket
+    const chLbl = svgEl('text', {
+      x: cx + br + 5, y: cy - br + 4,
+      'font-size':'13', 'font-weight':'900',
+      'font-family':'Nunito, sans-serif',
+      fill: '#333'
+    }, showChargeBracket);
+    svg.appendChild(chLbl);
+  }
+}
+
+function drawElectron(svg, x, y, isDot, paired) {
+  if (isDot) {
+    const c = svgEl('circle', { cx: x, cy: y, r: '4.5',
+      fill:'#c07000', stroke:'#8B4500', 'stroke-width':'0.5' });
+    svg.appendChild(c);
+    if (paired) {
+      const c2 = svgEl('circle', { cx: x + 5, cy: y, r: '4.5',
+        fill:'#c07000', stroke:'#8B4500', 'stroke-width':'0.5' });
+      svg.appendChild(c2);
+    }
+  } else {
+    // Cross: two short lines
+    const sz = 5;
+    const l1 = svgEl('line', { x1: x-sz, y1: y-sz, x2: x+sz, y2: y+sz,
+      stroke:'#1a5fa0', 'stroke-width':'2.2', 'stroke-linecap':'round' });
+    const l2 = svgEl('line', { x1: x+sz, y1: y-sz, x2: x-sz, y2: y+sz,
+      stroke:'#1a5fa0', 'stroke-width':'2.2', 'stroke-linecap':'round' });
+    svg.appendChild(l1);
+    svg.appendChild(l2);
+    if (paired) {
+      const l3 = svgEl('line', { x1: x-sz+6, y1: y-sz, x2: x+sz+6, y2: y+sz,
+        stroke:'#1a5fa0', 'stroke-width':'2.2', 'stroke-linecap':'round' });
+      const l4 = svgEl('line', { x1: x+sz+6, y1: y-sz, x2: x-sz+6, y2: y+sz,
+        stroke:'#1a5fa0', 'stroke-width':'2.2', 'stroke-linecap':'round' });
+      svg.appendChild(l3); svg.appendChild(l4);
+    }
+  }
+}
+
+function drawArrow(svg, x1, y1, x2, y2, label) {
+  const line = svgEl('line', { x1, y1, x2, y2,
+    stroke:'#444', 'stroke-width':'2',
+    'marker-end':'url(#arrowhead)' });
+  svg.appendChild(line);
+  if (label) {
+    const mid = svgEl('text', {
+      x: (x1+x2)/2, y: y1 - 8,
+      'text-anchor':'middle',
+      'font-size':'11',
+      'font-family':'Nunito, sans-serif',
+      'font-weight':'700',
+      fill:'#444'
+    }, label);
+    svg.appendChild(mid);
+  }
+}
+
+function addDefs(svg) {
+  const defs = svgEl('defs', {});
+  const marker = svgEl('marker', { id:'arrowhead', markerWidth:'10', markerHeight:'7',
+    refX:'9', refY:'3.5', orient:'auto' });
+  const poly = svgEl('polygon', { points:'0 0, 10 3.5, 0 7', fill:'#444' });
+  marker.appendChild(poly);
+  defs.appendChild(marker);
+
+  // Animated electron transfer marker
+  const markerY = svgEl('marker', { id:'arrowY', markerWidth:'10', markerHeight:'7',
+    refX:'9', refY:'3.5', orient:'auto' });
+  const polyY = svgEl('polygon', { points:'0 0, 10 3.5, 0 7', fill:'#c07000' });
+  markerY.appendChild(polyY);
+  defs.appendChild(markerY);
+
+  svg.appendChild(defs);
+}
+
+// ─── STEP RENDERERS ──────────────────────────────────────────────────────────
+
+function renderStep0(comp) {
+  // Show metal atom(s) only
+  const svg = clearSvg();
+  addDefs(svg);
+  const m = comp.metal;
+  const ratio = comp.ratio;
+  const count = ratio[0];
+
+  // Title
+  const t = svgEl('text', { x:'380', y:'22', 'text-anchor':'middle',
+    'font-size':'13', 'font-weight':'800', 'font-family':'Nunito,sans-serif',
+    fill:'#aaa', 'letter-spacing':'2' }, (m.name.toUpperCase() + ' ATOM' + (count>1?' (×'+count+')':'')));
+  svg.appendChild(t);
+
+  if (count === 1) {
+    drawOuterShell(svg, 380, 160, 65, m.outerE, m.outerE, m.fill, m.stroke, m.sym, '', null);
+    // Config label
+    const cfg = svgEl('text', { x:'380', y:'268', 'text-anchor':'middle',
+      'font-size':'13', 'font-weight':'700', 'font-family':'Source Code Pro,monospace', fill:'#666' },
+      'Config: [' + m.shells.join(',') + ']');
+    svg.appendChild(cfg);
+    const outerLbl = svgEl('text', { x:'380', y:'284', 'text-anchor':'middle',
+      'font-size':'11', 'font-weight':'600', 'font-family':'Nunito,sans-serif', fill:'#c07000' },
+      m.outerE + ' outer electron' + (m.outerE>1?'s':'') + ' (dots = metal electrons)');
+    svg.appendChild(outerLbl);
+  } else {
+    // Two atoms side by side
+    const positions = [200, 560];
+    positions.forEach((cx, i) => {
+      drawOuterShell(svg, cx, 155, 60, m.outerE, m.outerE, m.fill, m.stroke, m.sym + (i+1), '', null);
+      const cfg = svgEl('text', { x: cx, y: 256, 'text-anchor':'middle',
+        'font-size':'11.5', 'font-family':'Source Code Pro,monospace', 'font-weight':'600', fill:'#666' },
+        '[' + m.shells.join(',') + ']');
+      svg.appendChild(cfg);
+    });
+    const lbl = svgEl('text', { x:'380', y:'283', 'text-anchor':'middle',
+      'font-size':'11.5', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#c07000' },
+      'Each ' + m.sym + ' has ' + m.outerE + ' outer electron' + (m.outerE>1?'s':'') + ' — dots represent metal electrons');
+    svg.appendChild(lbl);
+  }
+}
+
+function renderStep1(comp) {
+  // Show non-metal atom(s) only
+  const svg = clearSvg();
+  addDefs(svg);
+  const n = comp.non;
+  const ratio = comp.ratio;
+  const count = ratio[1];
+
+  const t = svgEl('text', { x:'380', y:'22', 'text-anchor':'middle',
+    'font-size':'13', 'font-weight':'800', 'font-family':'Nunito,sans-serif',
+    fill:'#aaa', 'letter-spacing':'2' }, (n.name.toUpperCase() + ' ATOM' + (count>1?' (×'+count+')':'')));
+  svg.appendChild(t);
+
+  if (count === 1) {
+    drawOuterShell(svg, 380, 160, 65, n.outerE, 0, n.fill, n.stroke, n.sym, '', null);
+    const cfg = svgEl('text', { x:'380', y:'268', 'text-anchor':'middle',
+      'font-size':'13', 'font-weight':'700', 'font-family':'Source Code Pro,monospace', fill:'#666' },
+      'Config: [' + n.shells.join(',') + ']');
+    svg.appendChild(cfg);
+    const space = 8 - n.outerE;
+    const outerLbl = svgEl('text', { x:'380', y:'284', 'text-anchor':'middle',
+      'font-size':'11', 'font-weight':'600', 'font-family':'Nunito,sans-serif', fill:'#1a5fa0' },
+      n.outerE + ' outer electrons (crosses) — needs ' + space + ' more for full octet');
+    svg.appendChild(outerLbl);
+  } else {
+    const spacing = Math.min(180, 520 / count);
+    const startX = 380 - spacing * (count - 1) / 2;
+    for (let i = 0; i < count; i++) {
+      const cx = startX + i * spacing;
+      drawOuterShell(svg, cx, 150, 55, n.outerE, 0, n.fill, n.stroke, n.sym + (i+1), '', null);
+      const cfg = svgEl('text', { x: cx, y: 250, 'text-anchor':'middle',
+        'font-size':'10.5', 'font-family':'Source Code Pro,monospace', 'font-weight':'600', fill:'#666' },
+        '[' + n.shells.join(',') + ']');
+      svg.appendChild(cfg);
+    }
+    const space = 8 - n.outerE;
+    const lbl = svgEl('text', { x:'380', y:'278', 'text-anchor':'middle',
+      'font-size':'11', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#1a5fa0' },
+      'Each ' + n.sym + ' has ' + n.outerE + ' crosses — needs ' + space + ' more for full octet');
+    svg.appendChild(lbl);
+  }
+}
+
+function renderStep2(comp) {
+  // Show transfer diagram — metal + non-metal side by side with arrow and electron dots moving
+  const svg = clearSvg();
+  addDefs(svg);
+  const m = comp.metal, n = comp.non;
+  const [ratioM, ratioN] = comp.ratio;
+
+  const t = svgEl('text', { x:'380', y:'22', 'text-anchor':'middle',
+    'font-size':'13', 'font-weight':'800', 'font-family':'Nunito,sans-serif',
+    fill:'#aaa', 'letter-spacing':'2' }, 'ELECTRON TRANSFER');
+  svg.appendChild(t);
+
+  if (ratioM === 1 && ratioN === 1) {
+    // Simple 1:1
+    const mCx = 185, nCx = 575, cy = 155, shellR = 62;
+    // Metal — show with remaining dots AFTER transfer (none)
+    drawOuterShell(svg, mCx, cy, shellR, m.outerE, m.outerE, m.fill, m.stroke, m.sym, '', null);
+    // Non-metal — show with crosses
+    drawOuterShell(svg, nCx, cy, shellR, n.outerE, 0, n.fill, n.stroke, n.sym, '', null);
+
+    // Arrow with label
+    const arrX1 = mCx + shellR + 14, arrX2 = nCx - shellR - 14;
+    const arrY = cy;
+    const arrLine = svgEl('line', { x1: arrX1, y1: arrY, x2: arrX2, y2: arrY,
+      stroke:'#c07000', 'stroke-width':'2.5', 'marker-end':'url(#arrowY)',
+      'stroke-dasharray':'5,3' });
+    svg.appendChild(arrLine);
+
+    // Animated dot along arrow
+    const dotAnim = svgEl('circle', { r:'6', fill:'#c07000', stroke:'#8B4500', 'stroke-width':'1',
+      filter:'drop-shadow(0 0 4px #c07000)' });
+    const animEl = svgEl('animateMotion', {
+      dur:'1.5s', repeatCount:'indefinite', calcMode:'spline',
+      keySplines:'0.4 0 0.6 1',
+      path:`M${arrX1},${arrY} L${arrX2},${arrY}`
+    });
+    dotAnim.appendChild(animEl);
+    svg.appendChild(dotAnim);
+
+    const arrLbl = svgEl('text', { x:(arrX1+arrX2)/2, y: arrY - 12,
+      'text-anchor':'middle', 'font-size':'12', 'font-weight':'800',
+      'font-family':'Nunito,sans-serif', fill:'#c07000' },
+      comp.eTrans + ' e⁻ transferred');
+    svg.appendChild(arrLbl);
+
+    // Labels
+    const mLbl = svgEl('text', { x: mCx, y: cy + shellR + 24, 'text-anchor':'middle',
+      'font-size':'12', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#c07000' },
+      m.sym + ' loses ' + comp.eTrans + 'e⁻');
+    svg.appendChild(mLbl);
+    const nLbl = svgEl('text', { x: nCx, y: cy + shellR + 24, 'text-anchor':'middle',
+      'font-size':'12', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#1a5fa0' },
+      n.sym + ' gains ' + comp.eTrans + 'e⁻');
+    svg.appendChild(nLbl);
+
+  } else if (ratioM === 2 && ratioN === 1) {
+    // K2O type: 2 metals, 1 non-metal in centre
+    const cy = 145;
+    drawOuterShell(svg, 130, cy, 55, m.outerE, m.outerE, m.fill, m.stroke, m.sym+'₁', '', null);
+    drawOuterShell(svg, 380, cy, 62, n.outerE, 0, n.fill, n.stroke, n.sym, '', null);
+    drawOuterShell(svg, 630, cy, 55, m.outerE, m.outerE, m.fill, m.stroke, m.sym+'₂', '', null);
+
+    // Arrows from each K to O
+    [[130+55+10, 380-62-10], [630-55-10, 380+62+10]].forEach(([x1,x2], i) => {
+      const line = svgEl('line', { x1, y1: cy, x2, y2: cy,
+        stroke:'#c07000', 'stroke-width':'2.5', 'marker-end':'url(#arrowY)',
+        'stroke-dasharray': i===0?'5,3':'5,3' });
+      svg.appendChild(line);
+      const dot = svgEl('circle', { r:'5.5', fill:'#c07000', stroke:'#8B4500', 'stroke-width':'1' });
+      const anim = svgEl('animateMotion', {
+        dur:'1.5s', repeatCount:'indefinite', calcMode:'spline',
+        keySplines:'0.4 0 0.6 1', begin: i===0?'0s':'0.5s',
+        path:`M${x1},${cy} L${x2},${cy}`
+      });
+      dot.appendChild(anim);
+      svg.appendChild(dot);
+    });
+
+    const lbl = svgEl('text', { x:'380', y:'255', 'text-anchor':'middle',
+      'font-size':'12', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#444' },
+      'Each K loses 1 e⁻ → O gains 2 e⁻ total');
+    svg.appendChild(lbl);
+
+  } else {
+    // Al2O3: 2 Al, 3 O
+    const cy = 145;
+    // 2 Al on left
+    drawOuterShell(svg, 120, 100, 50, m.outerE, m.outerE, m.fill, m.stroke, 'Al₁', '', null);
+    drawOuterShell(svg, 120, 230, 50, m.outerE, m.outerE, m.fill, m.stroke, 'Al₂', '', null);
+    // 3 O on right
+    const oYs = [80, 170, 255];
+    oYs.forEach((oy,i) => {
+      drawOuterShell(svg, 530, oy, 48, n.outerE, 0, n.fill, n.stroke, 'O'+(i+1), '', null);
+    });
+
+    // Arrows (simplified: Al1 -> O1, O2; Al2 -> O2, O3)
+    const arrows = [
+      [120+50, 100, 530-48, 80],
+      [120+50, 130, 530-48, 170],
+      [120+50, 230, 530-48, 170],
+      [120+50, 250, 530-48, 255]
+    ];
+    arrows.forEach(([x1,y1,x2,y2], i) => {
+      const line = svgEl('line', { x1, y1, x2, y2,
+        stroke:'#c07000', 'stroke-width':'1.8', 'marker-end':'url(#arrowY)',
+        'stroke-dasharray':'4,3', opacity:'0.8' });
+      svg.appendChild(line);
+    });
+
+    const lbl = svgEl('text', { x:'380', y:'292', 'text-anchor':'middle',
+      'font-size':'11.5', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#444' },
+      '2 Al × 3e⁻ = 6 e⁻ transferred → 3 O × 2e⁻ each');
+    svg.appendChild(lbl);
+  }
+}
+
+function renderStep3(comp) {
+  // Show completed ions with full dot-cross diagram (the classic final state)
+  const svg = clearSvg();
+  addDefs(svg);
+  const m = comp.metal, n = comp.non;
+  const [ratioM, ratioN] = comp.ratio;
+
+  const t = svgEl('text', { x:'380', y:'22', 'text-anchor':'middle',
+    'font-size':'13', 'font-weight':'800', 'font-family':'Nunito,sans-serif',
+    fill:'#aaa', 'letter-spacing':'2' }, 'IONS FORMED — COMPLETE DOT-CROSS DIAGRAM');
+  svg.appendChild(t);
+
+  // Calculate final electron counts
+  const cationOuter = 0; // lost outer shell — show innermost
+  const anionOuter = n.outerE + m.charge * ratioM / ratioN;
+
+  // For the ion diagrams, we show:
+  // Cation: uses the shell BEFORE the outer one as new outer (full)
+  // The inner shell of Na is [2,8] → show as just the symbol with 8 crosses around it
+  // Anion: outer shell now full (8)
+
+  const cShellsFull = m.shells.slice(0, -1); // remove outer shell
+  const newCOuterE = cShellsFull.length > 0 ? cShellsFull[cShellsFull.length-1] : 2;
+
+  if (ratioM === 1 && ratioN === 1) {
+    const mCx = 195, nCx = 565, cy = 155, shellR = 65;
+
+    // Cation: outer shell now = inner electrons (full), drawn with crosses (they still belong to metal atom but we indicate all as dots for cation)
+    // In dot-cross: the cation keeps its remaining electrons shown as dots, anion shows gained electrons as dots from original metal
+    // Cation remaining electrons as dots (own), anion outer = 6 crosses + the gained as dots
+    const catOuterE = newCOuterE; // e.g. 8 for Na+
+    drawOuterShell(svg, mCx, cy, shellR, catOuterE, catOuterE, m.ionFill, m.ionStroke, m.sym, '', chargeSign(m.charge, '+'));
+
+    // Anion: 8 electrons — (8 - n.outerE) are dots (came from metal), rest are crosses
+    const dotGained = m.charge * ratioM / ratioN;
+    drawOuterShell(svg, nCx, cy, shellR, 8, dotGained, n.ionFill, n.ionStroke, n.sym, '', chargeSign(m.charge, '−'));
+
+    // Ion labels
+    const mIonLbl = svgEl('text', { x: mCx, y: cy + shellR + 22, 'text-anchor':'middle',
+      'font-size':'14', 'font-weight':'800', 'font-family':'Nunito,sans-serif', fill: m.ionStroke },
+      m.ionSym);
+    svg.appendChild(mIonLbl);
+    const nIonLbl = svgEl('text', { x: nCx, y: cy + shellR + 22, 'text-anchor':'middle',
+      'font-size':'14', 'font-weight':'800', 'font-family':'Nunito,sans-serif', fill: n.ionStroke },
+      n.ionSym);
+    svg.appendChild(nIonLbl);
+
+    // Size comparison line
+    const sizeNote = svgEl('text', { x:'380', y:'278', 'text-anchor':'middle',
+      'font-size':'11', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#666' },
+      m.sym+'⁺ is SMALLER than '+m.sym+' atom   |   '+n.sym+'⁻ is LARGER than '+n.sym+' atom');
+    svg.appendChild(sizeNote);
+
+  } else if (ratioM === 2 && ratioN === 1) {
+    // 2 cations flanking 1 anion
+    const cy = 148;
+    const catOuterE = newCOuterE;
+    const dotGained = m.charge * ratioM / ratioN;
+
+    drawOuterShell(svg, 140, cy, 55, catOuterE, catOuterE, m.ionFill, m.ionStroke, m.sym, '', chargeSign(m.charge, '+'));
+    drawOuterShell(svg, 380, cy, 63, 8, dotGained, n.ionFill, n.ionStroke, n.sym, '', chargeSign(dotGained, '−'));
+    drawOuterShell(svg, 620, cy, 55, catOuterE, catOuterE, m.ionFill, m.ionStroke, m.sym, '', chargeSign(m.charge, '+'));
+
+    const lbls = [[140, m.ionSym], [380, n.ionSym], [620, m.ionSym]];
+    lbls.forEach(([x, s]) => {
+      const l = svgEl('text', { x, y: cy+70, 'text-anchor':'middle',
+        'font-size':'13', 'font-weight':'800', 'font-family':'Nunito,sans-serif',
+        fill: s.includes(m.sym) ? m.ionStroke : n.ionStroke }, s);
+      svg.appendChild(l);
+    });
+
+    const note = svgEl('text', { x:'380', y:'270', 'text-anchor':'middle',
+      'font-size':'11', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#666' },
+      '● = electrons from K   ✕ = electrons from O   Dots in '+n.sym+'²⁻ shell = transferred e⁻');
+    svg.appendChild(note);
+
+  } else {
+    // Al2O3: 2 Al ions + 3 O ions
+    const catOuterE = newCOuterE;
+    const dotGained = m.charge; // each O gets 2 dots
+
+    // 2 Al ions top row
+    drawOuterShell(svg, 140, 110, 48, catOuterE, catOuterE, m.ionFill, m.ionStroke, 'Al', '', chargeSign(3,'+'));
+    drawOuterShell(svg, 620, 110, 48, catOuterE, catOuterE, m.ionFill, m.ionStroke, 'Al', '', chargeSign(3,'+'));
+
+    // 3 O ions
+    const oXs = [240, 380, 520];
+    oXs.forEach(ox => {
+      drawOuterShell(svg, ox, 200, 50, 8, dotGained, n.ionFill, n.ionStroke, 'O', '', chargeSign(2,'−'));
+    });
+
+    // Labels
+    [[140,165,'Al³⁺'],[620,165,'Al³⁺'],[240,260,'O²⁻'],[380,260,'O²⁻'],[520,260,'O²⁻']].forEach(([x,y,s]) => {
+      const l = svgEl('text', { x, y, 'text-anchor':'middle',
+        'font-size':'12', 'font-weight':'800', 'font-family':'Nunito,sans-serif',
+        fill: s.includes('Al') ? m.ionStroke : n.ionStroke }, s);
+      svg.appendChild(l);
+    });
+
+    const note = svgEl('text', { x:'380', y:'285', 'text-anchor':'middle',
+      'font-size':'10.5', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#666' },
+      '● = e⁻ from Al   ✕ = e⁻ originally from O   Each O²⁻ has 2 dots (transferred) + 6 crosses');
+    svg.appendChild(note);
+  }
+}
+
+function chargeSign(n, sign) {
+  if (n === 1) return sign;
+  return n + sign;
+}
+
+// ─── Step machine ─────────────────────────────────────────────────────────────
+function buildStepBar(comp) {
+  const bar = document.getElementById('stepBar');
+  bar.innerHTML = '';
+  comp.steps.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'step-tab';
+    d.id = 'stab-' + i;
+    d.textContent = (i+1) + '. ' + s;
+    bar.appendChild(d);
+  });
+}
+
+function updateStepBar(s) {
+  document.querySelectorAll('.step-tab').forEach((el, i) => {
+    el.classList.toggle('active', i === s);
+    el.classList.toggle('done', i < s);
+  });
+}
+
+function updateFacts(comp, s) {
+  const strip = document.getElementById('factsStrip');
+  strip.innerHTML = '';
+  if (s < 0) return;
+  const chips = [];
+  if (s >= 0) chips.push({ t: comp.metal.name + ' — Group ' + (comp.metal.outerE <= 3 ? comp.metal.outerE : '?'), cls: '' });
+  if (s >= 0) chips.push({ t: comp.non.name + ' — Group ' + (10 + comp.non.outerE), cls: '' });
+  if (s >= 2) chips.push({ t: comp.eTrans + 'e⁻ transferred per ' + comp.metal.sym, cls: 'cat' });
+  if (s >= 3) chips.push({ t: comp.metal.ionSym + ' forms (smaller)', cls: 'cat' });
+  if (s >= 3) chips.push({ t: comp.non.ionSym + ' forms (larger)', cls: 'an' });
+  if (s >= 3) chips.push({ t: 'Charge balance: ✓', cls: 'an' });
+  chips.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'fact-chip ' + c.cls;
+    el.textContent = c.t;
+    strip.appendChild(el);
+  });
+}
+
+const stepFns = [renderStep0, renderStep1, renderStep2, renderStep3];
+
+function nextStep() {
+  const comp = C[current];
+  step++;
+  if (step >= 4) { resetAll(); return; }
+
+  updateStepBar(step);
+  document.getElementById('stageTitle').textContent = comp.steps[step];
+  document.getElementById('narrative').innerHTML = comp.narr[step];
+  updateFacts(comp, step);
+  stepFns[step](comp);
+  document.getElementById('diagramCard').classList.remove('anim-fadein');
+  void document.getElementById('diagramCard').offsetWidth;
+  document.getElementById('diagramCard').classList.add('anim-fadein');
+
+  const labels = ['▶ Show Non-metal', '▶ Show Transfer', '▶ Show Ions', '↺ Restart'];
+  document.getElementById('nextBtn').textContent = labels[step];
+}
+
+function selectCompound(key) {
+  current = key;
+  document.querySelectorAll('.tab').forEach(b => {
+    const match = b.textContent.replace('₂','2').replace('₃','3') === key;
+    b.classList.toggle('active', match);
+  });
+  resetAll();
+}
+
+function resetAll() {
+  step = -1;
+  const comp = C[current];
+  buildStepBar(comp);
+  updateStepBar(-1);
+  updateFacts(comp, -1);
+  document.getElementById('stageTitle').textContent = 'Ready';
+  document.getElementById('narrative').innerHTML = `Click <strong>Next Step</strong> to begin the dot-and-cross diagram for <em>${comp.full} (${comp.label})</em>.`;
+  clearSvg();
+
+  // Show blank placeholder
+  const svg = document.getElementById('mainSvg');
+  addDefs(svg);
+  const ph = svgEl('text', { x:'380', y:'160', 'text-anchor':'middle',
+    'font-size':'15', 'font-weight':'700', 'font-family':'Nunito,sans-serif', fill:'#ccc' },
+    '← Select a compound and press Next Step →');
+  svg.appendChild(ph);
+
+  document.getElementById('nextBtn').textContent = '▶ Next Step';
+  document.getElementById('nextBtn').disabled = false;
+}
+
+// Init
+resetAll();
+</script>
+</body>
+</html>
